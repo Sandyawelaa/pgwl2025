@@ -20,7 +20,7 @@
     <div id="map"></div>
 
     <!-- Modal Create Point -->
-    <div class="modal fade" id="createpointModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal fade" id="CreatePointModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -92,14 +92,14 @@
     </div>
 
     <!-- Modal Create Polygon -->
-    <div class="modal fade" id="createpolygonsModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal fade" id="createPolygonModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h1 class="modal-title fs-5" id="exampleModalLabel">Create Polygon</h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" action="{{ route('polygons.store') }}">
+                <form method="POST" action="{{ route('polygon.store') }}">
                     <div class="modal-body">
                         @csrf
                         <div class="mb-3">
@@ -114,8 +114,8 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="geom_polygons" class="form-label">Geometry</label>
-                            <textarea class="form-control" id="geom_polygons" name="geom_polygons" rows="3"></textarea>
+                            <label for="geom_polygon" class="form-label">Geometry</label>
+                            <textarea class="form-control" id="geom_polygon" name="geom_polygon" rows="3"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -126,8 +126,6 @@
             </div>
         </div>
     </div>
-
-
 @endsection
 
 
@@ -182,9 +180,9 @@
 
             // berupa permisalan : jika,
 
-           //console.log(objectGeometry);
+            //console.log(objectGeometry);
 
-           if (type === 'polyline') {
+            if (type === 'polyline') {
                 console.log("Create " + type);
 
                 $('#geom_polyline').val(objectGeometry);
@@ -195,10 +193,10 @@
             } else if (type === 'polygon' || type === 'rectangle') {
                 console.log("Create " + type);
 
-                $('#geom_polygons').val(objectGeometry);
+                $('#geom_polygon').val(objectGeometry);
 
                 //memunculkan modal create polygon
-                $('#createpolygonsModal').modal('show');
+                $('#createPolygonModal').modal('show');
 
             } else if (type === 'marker') {
                 console.log("Create " + type);
@@ -212,6 +210,72 @@
             }
 
             drawnItems.addLayer(layer);
-        });
+        });
+         /* GeoJSON Point */
+    var point = L.geoJson(null, {
+				onEachFeature: function (feature, layer) {
+					var popupContent = "Nama: " + feature.properties.name + "<br>" +
+						"Deskripsi: " + feature.properties.description + "<br>" +
+                        "Dibuat: " + feature.properties.created_at;
+					layer.on({
+						click: function (e) {
+							point.bindPopup(popupContent);
+						},
+						mouseover: function (e) {
+							point.bindTooltip(feature.properties.name);
+						},
+					});
+				},
+			});
+			$.getJSON("{{ route('api.points') }}", function (data) {
+				point.addData(data);
+				map.addLayer(point);
+			});
+
+            /* GeoJSON Polyline */
+    var polyline = L.geoJson(null, {
+				onEachFeature: function (feature, layer) {
+					var popupContent = "Nama: " + feature.properties.name + "<br>" +
+						"Deskripsi: " + feature.properties.description + "<br>" +
+                        "Panjang: " + feature.properties.length_km.toFixed(2) + " km" + "<br>" +
+                        "Dibuat: " + feature.properties.created_at;
+					layer.on({
+						click: function (e) {
+							polyline.bindPopup(popupContent);
+						},
+						mouseover: function (e) {
+							polyline.bindTooltip(feature.properties.name);
+						},
+					});
+				},
+			});
+			$.getJSON("{{ route('api.polylines') }}", function (data) {
+				polyline.addData(data);
+				map.addLayer(polyline);
+			});
+
+            /* GeoJSON Polygon */
+    var polygon = L.geoJson(null, {
+				onEachFeature: function (feature, layer) {
+					var popupContent = "Nama: " + feature.properties.name + "<br>" +
+						"Deskripsi: " + feature.properties.description + "<br>" +
+                        "Luas: " + feature.properties.luas_hektar.toFixed(2) + " hektar" + "<br>" +
+                        "Dibuat: " + feature.properties.created_at;
+					layer.on({
+						click: function (e) {
+							polygon.bindPopup(popupContent);
+						},
+						mouseover: function (e) {
+							polygon.bindTooltip(feature.properties.name);
+						},
+					});
+				},
+			});
+			$.getJSON("{{ route('api.polygon') }}", function (data) {
+				polygon.addData(data);
+				map.addLayer(polygon);
+			});
+
+
     </script>
 @endsection
