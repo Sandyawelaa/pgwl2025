@@ -7,11 +7,13 @@ use App\Models\PolylinesModel;
 
 class PolylinesController extends Controller
 {
+
     public function __construct()
     {
-        $this->polylines = new PolylinesModel();
+        $this->polylines = new PolylinesModel;
     }
-    
+
+
     /**
      * Display a listing of the resource.
      */
@@ -33,34 +35,48 @@ class PolylinesController extends Controller
      */
     public function store(Request $request)
     {
-        //validate request
+        //Validation
         $request->validate(
             [
                 'name' => 'required|unique:polylines,name',
-                'description'=> 'required',
+                'description' => 'required',
                 'geom_polyline' => 'required',
+                'image' => 'nullable|mimes:jpg,jpeg,png|max:2048',
             ],
             [
                 'name.required' => 'Name is required',
                 'name.unique' => 'Name already exists',
-                'description.required'=> 'Description is required',
-                'geom_polyline.required' => 'Geometry polyline is required',
-
+                'description.required' => 'Description is required',
+                'geom_polyline.required' => 'Location is required',
             ]
         );
+        //Create images directory if not exists
+        if (!is_dir('storage/images')) {
+            mkdir('./storage/images', 0777);
+        }
+
+        //Get image file
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $name_image = time() . "_polyline." . strtolower($image->getClientOriginalExtension());
+            $image->move('storage/images', $name_image);
+        } else {
+            $name_image = null;
+        }
 
         $data = [
             'geom' => $request->geom_polyline,
             'name' => $request->name,
             'description' => $request->description,
+            'image' => $name_image,
         ];
 
-        // create data
+        //Create Data
         if (!$this->polylines->create($data)) {
-            return redirect()->route('map')->with('error', 'Polyline failed to added');
+            return redirect()->route('map')->with('error', 'Polyline Failed to add');
         }
 
-        // redirect to map
+        //Redirect to map
         return redirect()->route('map')->with('success', 'Polyline has been added');
     }
 
