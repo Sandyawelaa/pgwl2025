@@ -7,12 +7,12 @@ use Illuminate\Http\Request;
 
 class PointsController extends Controller
 {
-    //
 
     public function __construct()
     {
-        $this->points = new PointsModel();
+        $this->points = new PointsModel;
     }
+
     /**
      * Display a listing of the resource.
      */
@@ -20,7 +20,6 @@ class PointsController extends Controller
     {
         $data = [
             'title' => 'Map',
-
         ];
 
         return view('map', $data);
@@ -32,7 +31,6 @@ class PointsController extends Controller
     public function create()
     {
         //
-
     }
 
     /**
@@ -40,35 +38,34 @@ class PointsController extends Controller
      */
     public function store(Request $request)
     {
-        //validate request
+        //Validation
         $request->validate(
             [
                 'name' => 'required|unique:points,name',
-                'description'=> 'required',
+                'description' => 'required',
                 'geom_point' => 'required',
-                'image' => 'nullable|mimes:jpeg,png,jpg|max:2080',
+                'image' => 'nullable|mimes:jpg,jpeg,png|max:1024',
             ],
             [
                 'name.required' => 'Name is required',
                 'name.unique' => 'Name already exists',
-                'description.required'=> 'Description is required',
-                'geom_point.required' => 'Geometry point is required',
-
+                'description.required' => 'Description is required',
+                'geom_point.required' => 'Location is required',
             ]
         );
         //Create images directory if not exists
         if (!is_dir('storage/images')) {
             mkdir('./storage/images', 0777);
-         }
+        }
 
         //Get image file
         if ($request->hasFile('image')) {
             $image = $request->file('image');
             $name_image = time() . "_point." . strtolower($image->getClientOriginalExtension());
             $image->move('storage/images', $name_image);
-          } else {
+        } else {
             $name_image = null;
-          }
+        }
 
         $data = [
             'geom' => $request->geom_point,
@@ -77,12 +74,12 @@ class PointsController extends Controller
             'image' => $name_image,
         ];
 
-        // create data
+        //Create Data
         if (!$this->points->create($data)) {
-            return redirect()->route('map')->with('error', 'Point failed to added');
+            return redirect()->route('map')->with('error', 'Point Failed to add');
         }
 
-        // redirect to map
+        //Redirect to map
         return redirect()->route('map')->with('success', 'Point has been added');
     }
 
@@ -115,6 +112,19 @@ class PointsController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $imagefile = $this->points->find($id)->image;
+
+        if (!$this->points->destroy($id)){
+            return redirect()->route('map')->with('error', 'Point Failed to delete');
+        }
+
+        //Delete image file
+        if ($imagefile != null) {
+            if (file_exists('./storage/images/' .$imagefile)) {
+                unlink('./storage/images/' .$imagefile);
+            }
+        }
+
+        return redirect()->route('map')->with('success', 'Point has been deleted');
+        }
     }
-}

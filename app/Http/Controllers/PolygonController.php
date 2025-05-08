@@ -105,10 +105,23 @@ class PolygonController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+   * Remove the specified resource from storage.
      */
     public function destroy(string $id)
     {
-        //
+        $imagefile = $this->polygon->find($id)->image;
+
+        if (!$this->polygon->destroy($id)){
+            return redirect()->route('map')->with('error', 'Polygon Failed to delete');
+        }
+
+        //Delete image file
+        if ($imagefile != null) {
+            if (file_exists('./storage/images/' .$imagefile)) {
+                unlink('./storage/images/' .$imagefile);
+            }
+        }
+
+        return redirect()->route('map')->with('success', 'Polygon has been deleted');
+        }
     }
-}
