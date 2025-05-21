@@ -15,6 +15,18 @@
 
 
 @section('content')
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-md-3">
+                <select class="form-select" id="layerSelect">
+                    <option value="all" selected>Show All</option>
+                    <option value="points">Points</option>
+                    <option value="polylines">Polylines</option>
+                    <option value="polygons">Polygons</option>
+                </select>
+            </div>
+        </div>
+    </div>
     <div id="map"></div>
 
     <!-- Modal Create Point-->
@@ -46,9 +58,10 @@
                         </div>
                         <div class="mb-3">
                             <label for="image" class="form-label">Photo</label>
-                            <input type="file" class="form-control" id="image_point"  name="image"
+                            <input type="file" class="form-control" id="image_point" name="image"
                                 onchange="document.getElementById('preview-image-point').src = window.URL.createObjectURL(this.files[0])">
-                            <img src="" alt="" id="preview-image-point" class="img-thumbnail" width="300">
+                            <img src="" alt="" id="preview-image-point" class="img-thumbnail"
+                                width="300">
                         </div>
 
                     </div>
@@ -92,9 +105,10 @@
                         </div>
                         <div class="mb-3">
                             <label for="image" class="form-label">Photo</label>
-                            <input type="file" class="form-control" id="image_polyline"  name="image"
+                            <input type="file" class="form-control" id="image_polyline" name="image"
                                 onchange="document.getElementById('preview-image-polyline').src = window.URL.createObjectURL(this.files[0])">
-                            <img src="" alt="" id="preview-image-polyline" class="img-thumbnail" width="300">
+                            <img src="" alt="" id="preview-image-polyline" class="img-thumbnail"
+                                width="300">
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -138,9 +152,10 @@
                         </div>
                         <div class="mb-3">
                             <label for="image" class="form-label">Photo</label>
-                            <input type="file" class="form-control" id="image_polygon"  name="image"
+                            <input type="file" class="form-control" id="image_polygon" name="image"
                                 onchange="document.getElementById('preview-image-polygon').src = window.URL.createObjectURL(this.files[0])">
-                            <img src="" alt="" id="preview-image-polygon" class="img-thumbnail" width="300">
+                            <img src="" alt="" id="preview-image-polygon" class="img-thumbnail"
+                                width="300">
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -171,8 +186,6 @@
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-
-
         /* Digitize Function */
         var drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
@@ -185,12 +198,156 @@
                 rectangle: true,
                 circle: false,
                 marker: true,
-                circlemarker: true
+                circlemarker: false
             },
             edit: false
         });
 
         map.addControl(drawControl);
+
+        // Initialize layer groups
+        var pointLayer = L.layerGroup().addTo(map);
+        var polylineLayer = L.layerGroup().addTo(map);
+        var polygonLayer = L.layerGroup().addTo(map);
+
+        // Load Points
+        function loadPoints() {
+            $.getJSON("{{ route('api.points') }}", function(data) {
+                pointLayer.clearLayers();
+                L.geoJson(data, {
+                    onEachFeature: function(feature, layer) {
+                        var routedelete = "{{ route('points.destroy', ':id') }}";
+                        routedelete = routedelete.replace(':id', feature.properties.id);
+
+                        var routeedit = "{{ route('points.edit', ':id') }}";
+                        routeedit = routeedit.replace(':id', feature.properties.id);
+
+                        var popupContent = "Nama: " + feature.properties.name + "<br>" +
+                            "Deskripsi: " + feature.properties.description + "<br>" +
+                            "Dibuat: " + feature.properties.created_at + "<br>" +
+                            "<img src='{{ asset('storage/images') }}/" + feature.properties.image +
+                            "' width='250' alt=''>" + "<br>" +
+                            "<div class='row mt-4'>" +
+                            "<div class='col-6 text-end'>" +
+                            "<a href='" + routeedit +
+                            "' class='btn btn-warning btn-sm'><i class='fa-solid fa-pen-to-square'></i></a>" +
+                            "</div>" +
+                            "<div class='col-6'>" +
+                            "<form method='POST' action='" + routedelete + "'>" +
+                            '@csrf' + '@method("DELETE")' +
+                            "<button type='submit' class='btn btn-danger btn-sm' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>" +
+                            "</form>" +
+                            "</div>" +
+                            "</div>";
+
+                        layer.bindPopup(popupContent);
+                        layer.bindTooltip(feature.properties.name);
+                    }
+                }).addTo(pointLayer);
+            });
+        }
+
+        // Load Polylines
+        function loadPolylines() {
+            $.getJSON("{{ route('api.polylines') }}", function(data) {
+                polylineLayer.clearLayers();
+                L.geoJson(data, {
+                    onEachFeature: function(feature, layer) {
+                        var routedelete = "{{ route('polylines.destroy', ':id') }}";
+                        routedelete = routedelete.replace(':id', feature.properties.id);
+
+                        var routeedit = "{{ route('polylines.edit', ':id') }}";
+                        routeedit = routeedit.replace(':id', feature.properties.id);
+
+                        var popupContent = "Nama: " + feature.properties.name + "<br>" +
+                            "Deskripsi: " + feature.properties.description + "<br>" +
+                            "Panjang: " + feature.properties.length_km.toFixed(2) + " km" + "<br>" +
+                            "Dibuat: " + feature.properties.created_at + "<br>" +
+                            "<img src='{{ asset('storage/images') }}/" + feature.properties.image +
+                            "' width='250' alt=''>" + "<br>" +
+                            "<div class='row mt-4'>" +
+                            "<div class='col-6 text-end'>" +
+                            "<a href='" + routeedit +
+                            "' class='btn btn-warning btn-sm'><i class='fa-solid fa-pen-to-square'></i></a>" +
+                            "</div>" +
+                            "<div class='col-6'>" +
+                            "<form method='POST' action='" + routedelete + "'>" +
+                            '@csrf' + '@method("DELETE")' +
+                            "<button type='submit' class='btn btn-danger btn-sm' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>" +
+                            "</form>" +
+                            "</div>" +
+                            "</div>";
+
+                        layer.bindPopup(popupContent);
+                        layer.bindTooltip(feature.properties.name);
+                    }
+                }).addTo(polylineLayer);
+            });
+        }
+
+        // Load Polygons
+        function loadPolygons() {
+            $.getJSON("{{ route('api.polygon') }}", function(data) {
+                polygonLayer.clearLayers();
+                L.geoJson(data, {
+                    onEachFeature: function(feature, layer) {
+                        var routedelete = "{{ route('polygon.destroy', ':id') }}";
+                        routedelete = routedelete.replace(':id', feature.properties.id);
+
+                        var routeedit = "{{ route('polygon.edit', ':id') }}";
+                        routeedit = routeedit.replace(':id', feature.properties.id);
+
+                        var popupContent = "Nama: " + feature.properties.name + "<br>" +
+                            "Deskripsi: " + feature.properties.description + "<br>" +
+                            "Luas: " + feature.properties.luas_hektar.toFixed(2) + " hektar" + "<br>" +
+                            "Dibuat: " + feature.properties.created_at + "<br>" +
+                            "<img src='{{ asset('storage/images') }}/" + feature.properties.image +
+                            "' width='250' alt=''>" + "<br>" +
+                            "<div class='row mt-4'>" +
+                            "<div class='col-6 text-end'>" +
+                            "<a href='" + routeedit +
+                            "' class='btn btn-warning btn-sm'><i class='fa-solid fa-pen-to-square'></i></a>" +
+                            "</div>" +
+                            "<div class='col-6'>" +
+                            "<form method='POST' action='" + routedelete + "'>" +
+                            '@csrf' + '@method("DELETE")' +
+                            "<button type='submit' class='btn btn-danger btn-sm' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>" +
+                            "</form>" +
+                            "</div>" +
+                            "</div>";
+
+                        layer.bindPopup(popupContent);
+                        layer.bindTooltip(feature.properties.name);
+                    }
+                }).addTo(polygonLayer);
+            });
+        }
+
+        // Load all layers initially
+        loadPoints();
+        loadPolylines();
+        loadPolygons();
+
+        // Handle dropdown changes
+        $('#layerSelect').on('change', function() {
+            var selectedValue = $(this).val();
+
+            // Hide all layers first
+            pointLayer.clearLayers();
+            polylineLayer.clearLayers();
+            polygonLayer.clearLayers();
+
+            // Show selected layers
+            if (selectedValue === 'all' || selectedValue === 'points') {
+                loadPoints();
+            }
+            if (selectedValue === 'all' || selectedValue === 'polylines') {
+                loadPolylines();
+            }
+            if (selectedValue === 'all' || selectedValue === 'polygons') {
+                loadPolygons();
+            }
+        });
 
         map.on('draw:created', function(e) {
             var type = e.layerType,
@@ -233,100 +390,6 @@
             }
 
             drawnItems.addLayer(layer);
-        });
-
-        /* GeoJSON Point */
-        var point = L.geoJson(null, {
-            onEachFeature: function(feature, layer) {
-                var routedelete = "{{route('points.destroy', ':id') }}";
-                routedelete = routedelete.replace(':id', feature.properties.id);
-
-                var popupContent = "Nama: " + feature.properties.name + "<br>" +
-                    "Deskripsi: " + feature.properties.description + "<br>" +
-                    "Dibuat: " + feature.properties.created_at + "<br>" +
-                    "ini tes: " + feature.properties.created_at + "<br>" +
-                    "<img src='{{ asset('storage/images') }}/" + feature.properties.image +
-                    "' width='250' alt=''>" + "<br>" +
-                    "<form method='POST' action='" + routedelete + "'>" +
-                    '@csrf' + '@method("DELETE")' +
-                    "<button type='submit' class='btn btn-danger' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>"+
-                    '</form>';
-                layer.on({
-                    click: function(e) {
-                        point.bindPopup(popupContent).openPopup();
-                    },
-                    mouseover: function(e) {
-                        point.bindTooltip(feature.properties.name);
-                    },
-                });
-            },
-        });
-        $.getJSON("{{ route('api.points') }}", function(data) {
-            point.addData(data);
-            map.addLayer(point);
-        });
-
-        /* GeoJSON Polyline */
-        var polyline = L.geoJson(null, {
-            onEachFeature: function(feature, layer) {
-                var routedelete = "{{route('polylines.destroy', ':id') }}";
-                routedelete = routedelete.replace(':id', feature.properties.id);
-
-                var popupContent = "Nama: " + feature.properties.name + "<br>" +
-                    "Deskripsi: " + feature.properties.description + "<br>" +
-                    "Panjang: " + feature.properties.length_km.toFixed(2) + " km" + "<br>" +
-                    "Dibuat: " + feature.properties.created_at + "<br>" +
-                    "<img src='{{ asset('storage/images') }}/" + feature.properties.image +
-                    "' width='250' alt=''>" + "<br>" +
-                    "<form method='POST' action='" + routedelete + "'>" +
-                    '@csrf' + '@method("DELETE")' +
-                    "<button type='submit' class='btn btn-danger' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>"+
-                    '</form>';
-                layer.on({
-                    click: function(e) {
-                        polyline.bindPopup(popupContent);
-                    },
-                    mouseover: function(e) {
-                        polyline.bindTooltip(feature.properties.name);
-                    },
-                });
-            },
-        });
-        $.getJSON("{{ route('api.polylines') }}", function(data) {
-            polyline.addData(data);
-            map.addLayer(polyline);
-        });
-
-        /* GeoJSON Polygon */
-        var polygon = L.geoJson(null, {
-            onEachFeature: function(feature, layer) {
-                var routedelete = "{{route('polygon.destroy', ':id') }}";
-                routedelete = routedelete.replace(':id', feature.properties.id);
-
-                var popupContent = "Nama: " + feature.properties.name + "<br>" +
-                    "Deskripsi: " + feature.properties.description + "<br>" +
-                    "Luas: " + feature.properties.luas_hektar.toFixed(2) + " hektar" + "<br>" +
-                    "Dibuat: " + feature.properties.created_at + "<br>" +
-                    "<img src='{{ asset('storage/images') }}/" + feature.properties.image +
-                    "' width='250' alt=''>" + "<br>" +
-                    "<form method='POST' action='" + routedelete + "'>" +
-                    '@csrf' + '@method("DELETE")' +
-                    "<button type='submit' class='btn btn-danger' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>"+
-                    '</form>';
-
-                layer.on({
-                    click: function(e) {
-                        polygon.bindPopup(popupContent);
-                    },
-                    mouseover: function(e) {
-                        polygon.bindTooltip(feature.properties.name);
-                    },
-                });
-            },
-        });
-        $.getJSON("{{ route('api.polygon') }}", function(data) {
-            polygon.addData(data);
-            map.addLayer(polygon);
         });
     </script>
 @endsection

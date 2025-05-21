@@ -19,7 +19,12 @@ class PolylinesController extends Controller
      */
     public function index()
     {
-        //
+
+        $data = [
+            'title' => 'Map',
+        ];
+
+        return view('map', $data);
     }
 
     /**
@@ -93,7 +98,11 @@ class PolylinesController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $data = [
+            'title' => 'Edit Polyline',
+            'id' => $id,
+        ];
+        return view('edit-polyline', $data);
     }
 
     /**
@@ -101,7 +110,54 @@ class PolylinesController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        //Validation
+        $request->validate(
+            [
+                'name' => 'required|unique:polylines,name,'.$id,
+                'description' => 'required',
+                'geom_polyline' => 'required',
+                'image' => 'nullable|mimes:jpg,jpeg,png|max:2048',
+            ],
+            [
+                'name.required' => 'Name is required',
+                'name.unique' => 'Name already exists',
+                'description.required' => 'Description is required',
+                'geom_polyline.required' => 'Location is required',
+            ]
+        );
+
+        //Get old data
+        $polyline = $this->polylines->find($id);
+        $old_image = $polyline->image;
+
+        //Handle image upload
+        if ($request->hasFile('image')) {
+            //Delete old image
+            if ($old_image != null && file_exists('./storage/images/' . $old_image)) {
+                unlink('./storage/images/' . $old_image);
+            }
+
+            //Upload new image
+            $image = $request->file('image');
+            $name_image = time() . "_polyline." . strtolower($image->getClientOriginalExtension());
+            $image->move('storage/images', $name_image);
+        } else {
+            $name_image = $old_image;
+        }
+
+        //Update data
+        $data = [
+            'geom' => $request->geom_polyline,
+            'name' => $request->name,
+            'description' => $request->description,
+            'image' => $name_image,
+        ];
+
+        if (!$polyline->update($data)) {
+            return redirect()->route('map')->with('error', 'Polyline Failed to update');
+        }
+
+        return redirect()->route('map')->with('success', 'Polyline has been updated');
     }
 
     /**

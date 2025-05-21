@@ -96,7 +96,11 @@ class PointsController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $data = [
+            'title' => 'Edit Point',
+            'id' => $id,
+        ];
+        return view('edit-point', $data);
     }
 
     /**
@@ -104,8 +108,62 @@ class PointsController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        //Validation
+        $request->validate(
+            [
+                'name' => 'required|unique:points,name,' . $id,
+                'description' => 'required',
+                'geom_point' => 'required',
+                'image' => 'nullable|mimes:jpg,jpeg,png|max:1024',
+            ],
+            [
+                'name.required' => 'Name is required',
+                'name.unique' => 'Name already exists',
+                'description.required' => 'Description is required',
+                'geom_point.required' => 'Location is required',
+            ]
+        );
+        //Create images directory if not exists
+        if (!is_dir('storage/images')) {
+            mkdir('./storage/images', 0777);
+        }
+
+
+        // Get old image file name
+        $old_image = $this->points->find($id)->image;
+
+        //Get image file
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $name_image = time() . "_point." . strtolower($image->getClientOriginalExtension());
+            $image->move('storage/images', $name_image);
+
+            //Delete old image file
+            if ($old_image != null) {
+                if (file_exists('./storage/images/' . $old_image)) {
+                    unlink('./storage/images/' . $old_image);
+                }
+            }
+        } else {
+            $name_image = $old_image;
+        }
+
+        $data = [
+            'geom' => $request->geom_point,
+            'name' => $request->name,
+            'description' => $request->description,
+            'image' => $name_image,
+        ];
+
+        //Update Data
+        if (!$this->points->find($id)->update($data)) {
+            return redirect()->route('map')->with('error', 'Point Failed to update');
+        }
+
+        //Redirect to map
+        return redirect()->route('map')->with('success', 'Point has been updated');
     }
+    // dd($id, $request->all());
 
     /**
      * Remove the specified resource from storage.
@@ -114,17 +172,17 @@ class PointsController extends Controller
     {
         $imagefile = $this->points->find($id)->image;
 
-        if (!$this->points->destroy($id)){
+        if (!$this->points->destroy($id)) {
             return redirect()->route('map')->with('error', 'Point Failed to delete');
         }
 
         //Delete image file
         if ($imagefile != null) {
-            if (file_exists('./storage/images/' .$imagefile)) {
-                unlink('./storage/images/' .$imagefile);
+            if (file_exists('./storage/images/' . $imagefile)) {
+                unlink('./storage/images/' . $imagefile);
             }
         }
 
         return redirect()->route('map')->with('success', 'Point has been deleted');
-        }
     }
+}

@@ -6,8 +6,7 @@ use App\Http\Controllers\PolygonController;
 use App\Http\Controllers\TableController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [PointsController::class, 'index'])->name('map');
-
+Route::get('/', [PolylinesController::class, 'index'])->name('map');
 Route::get('/table', [TableController::class, 'index'])->name('table');
 
 Route::resource('points', PointsController::class);
