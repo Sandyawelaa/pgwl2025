@@ -4,13 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\PolygonModel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class PolygonController extends Controller
 {
+    protected $polygon;
 
     public function __construct()
     {
-        $this->polygon = new PolygonModel;
+        $this->polygon = new PolygonModel();
     }
 
     /**
@@ -53,24 +55,26 @@ class PolygonController extends Controller
                 'geom_polygon.required' => 'Location is required',
             ]
         );
+
         //Create images directory if not exists
-        if (!is_dir('storage/images')) {
-            mkdir('./storage/images', 0777);
+        if (!file_exists(storage_path('app/public/images'))) {
+            mkdir(storage_path('app/public/images'), 0777, true);
         }
 
         //Get image file
+        $name_image = null;
         if ($request->hasFile('image')) {
             $image = $request->file('image');
             $name_image = time() . "_polygon." . strtolower($image->getClientOriginalExtension());
-            $image->move('storage/images', $name_image);
-        } else {
-            $name_image = null;
+            $image->storeAs('public/images', $name_image);
         }
+
         $data = [
             'geom' => $request->geom_polygon,
             'name' => $request->name,
             'description' => $request->description,
             'image' => $name_image,
+            'user_id' => auth()->id(),
         ];
 
         //Create Data
@@ -80,8 +84,6 @@ class PolygonController extends Controller
 
         //Redirect to map
         return redirect()->route('map')->with('success', 'Polygon has been added');
-
-
     }
 
     /**
@@ -100,9 +102,10 @@ class PolygonController extends Controller
         $data = [
             'title' => 'Edit Polygon',
             'id' => $id,
+            'polygon' => $this->polygon->find($id)
         ];
 
-        return view('edit-polygonn', $data);
+        return view('edit-polygon', $data);
     }
 
     /**
@@ -128,21 +131,24 @@ class PolygonController extends Controller
 
         //Get old data
         $polygon = $this->polygon->find($id);
+        if (!$polygon) {
+            return redirect()->route('map')->with('error', 'Polygon not found');
+        }
+
         $old_image = $polygon->image;
+        $name_image = $old_image;
 
         //Handle image upload
         if ($request->hasFile('image')) {
-            //Delete old image
-            if ($old_image != null && file_exists('./storage/images/' . $old_image)) {
-                unlink('./storage/images/' . $old_image);
+            //Delete old image if exists
+            if ($old_image && Storage::exists('public/images/' . $old_image)) {
+                Storage::delete('public/images/' . $old_image);
             }
 
             //Upload new image
             $image = $request->file('image');
             $name_image = time() . "_polygon." . strtolower($image->getClientOriginalExtension());
-            $image->move('storage/images', $name_image);
-        } else {
-            $name_image = $old_image;
+            $image->storeAs('public/images', $name_image);
         }
 
         //Update data
@@ -161,23 +167,26 @@ class PolygonController extends Controller
     }
 
     /**
-   * Remove the specified resource from storage.
+     * Remove the specified resource from storage.
      */
     public function destroy(string $id)
     {
-        $imagefile = $this->polygon->find($id)->image;
+        $polygon = $this->polygon->find($id);
+        if (!$polygon) {
+            return redirect()->route('map')->with('error', 'Polygon not found');
+        }
 
-        if (!$this->polygon->destroy($id)){
+        $imagefile = $polygon->image;
+
+        if (!$polygon->delete()) {
             return redirect()->route('map')->with('error', 'Polygon Failed to delete');
         }
 
-        //Delete image file
-        if ($imagefile != null) {
-            if (file_exists('./storage/images/' .$imagefile)) {
-                unlink('./storage/images/' .$imagefile);
-            }
+        //Delete image file if exists
+        if ($imagefile && Storage::exists('public/images/' . $imagefile)) {
+            Storage::delete('public/images/' . $imagefile);
         }
 
         return redirect()->route('map')->with('success', 'Polygon has been deleted');
-        }
     }
+}

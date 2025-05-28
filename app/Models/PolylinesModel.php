@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 
@@ -15,9 +14,13 @@ class PolylinesModel extends Model
     public function geojson_polylines()
     {
         $polylines = $this
-            ->select(DB::raw('id, st_asgeojson(geom) as geom, name, description, image, 
-            st_length(geom, true) as length_m, st_length(geom, true)/1000 as length_km,
-            created_at, updated_at'))
+            ->select(DB::raw('polylines.id, ST_AsGeoJSON(polylines.geom) as geom, 
+                polylines.name, polylines.description, polylines.image, 
+                polylines.created_at, polylines.updated_at, 
+                polylines.user_id, users.name as user_created,
+                ST_Length(polylines.geom, true) as length_m,
+                ST_Length(polylines.geom, true)/1000 as length_km'))
+            ->leftJoin('users', 'polylines.user_id', '=', 'users.id')
             ->get();
 
         $geojson = [
@@ -33,11 +36,13 @@ class PolylinesModel extends Model
                     'id' => $polyline->id,
                     'name' => $polyline->name,
                     'description' => $polyline->description,
-                    'length_m' => $polyline->length_m,
-                    'length_km' => $polyline->length_km,
+                    'length_m' => round($polyline->length_m, 2),
+                    'length_km' => round($polyline->length_km, 2),
                     'created_at' => $polyline->created_at,
                     'updated_at' => $polyline->updated_at,
                     'image' => $polyline->image,
+                    'user_id' => $polyline->user_id,
+                    'user_created' => $polyline->user_created
                 ],
             ];
             array_push($geojson['features'], $feature);
@@ -48,10 +53,14 @@ class PolylinesModel extends Model
     public function geojson_polyline($id)
     {
         $polylines = $this
-            ->select(DB::raw('id, st_asgeojson(geom) as geom, name, description, image,
-        st_length(geom, true) as length_m, st_length(geom, true)/1000 as length_km,
-        created_at, updated_at'))
-            ->where('id', $id)
+            ->select(DB::raw('polylines.id, ST_AsGeoJSON(polylines.geom) as geom, 
+                polylines.name, polylines.description, polylines.image,
+                ST_Length(polylines.geom, true) as length_m,
+                ST_Length(polylines.geom, true)/1000 as length_km,
+                polylines.created_at, polylines.updated_at,
+                polylines.user_id, users.name as user_created'))
+            ->leftJoin('users', 'polylines.user_id', '=', 'users.id')
+            ->where('polylines.id', $id)
             ->get();
 
         $geojson = [
@@ -59,19 +68,21 @@ class PolylinesModel extends Model
             'features' => [],
         ];
 
-        foreach ($polylines as $polylines) {
+        foreach ($polylines as $polyline) {
             $feature = [
                 'type' => 'Feature',
-                'geometry' => json_decode($polylines->geom),
+                'geometry' => json_decode($polyline->geom),
                 'properties' => [
-                    'id' => $polylines->id,
-                    'name' => $polylines->name,
-                    'description' => $polylines->description,
-                    'length_m' => $polylines->length_m,
-                    'length_km' => $polylines->length_km,
-                    'created_at' => $polylines->created_at,
-                    'updated_at' => $polylines->updated_at,
-                    'image' => $polylines->image,
+                    'id' => $polyline->id,
+                    'name' => $polyline->name,
+                    'description' => $polyline->description,
+                    'length_m' => round($polyline->length_m, 2),
+                    'length_km' => round($polyline->length_km, 2),
+                    'created_at' => $polyline->created_at,
+                    'updated_at' => $polyline->updated_at,
+                    'image' => $polyline->image,
+                    'user_id' => $polyline->user_id,
+                    'user_created' => $polyline->user_created
                 ],
             ];
             array_push($geojson['features'], $feature);
