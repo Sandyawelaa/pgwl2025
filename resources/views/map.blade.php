@@ -11,22 +11,40 @@
             height: calc(100vh - 56px);
         }
     </style>
+
+    <style>
+        #map {
+            width: 100%;
+            height: calc(100vh - 56px);
+        }
+
+        .info.legend {
+            padding: 10px;
+            font: 12px Arial, Helvetica, sans-serif;
+            background: white;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            line-height: 1.5;
+        }
+
+        .info.legend h4 {
+            margin: 0 0 5px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .info.legend i {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 5px;
+        }
+    </style>
 @endsection
 
 
 @section('content')
-    <div class="container-fluid">
-        <div class="row mb-2">
-            <div class="col-md-3">
-                <select class="form-select" id="layerSelect">
-                    <option value="all" selected>Show All</option>
-                    <option value="points">Points</option>
-                    <option value="polylines">Polylines</option>
-                    <option value="polygons">Polygons</option>
-                </select>
-            </div>
-        </div>
-    </div>
     <div id="map"></div>
 
     <!-- Modal Create Point-->
@@ -180,11 +198,106 @@
     <script src="https://unpkg.com/@terraformer/wkt"></script>
 
     <script>
-        var map = L.map('map').setView([-7.7810127389559725, 110.36609296833767], 13);
+        var map = L.map('map').setView([-7.008052836998501, 110.39784218601451], 12);
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+
+        // Fungsi untuk membuat legenda
+        var legend = L.control({
+            position: 'bottomright'
+        });
+
+        legend.onAdd = function(map) {
+            var div = L.DomUtil.create('div', 'info legend');
+            div.innerHTML += '<h4>Legenda</h4>';
+            div.innerHTML += '<i style="background: orange"></i> Batas Administrasi <br>';
+            div.innerHTML += '<i style="background: red"></i> Jalan <br>';
+            div.innerHTML +=
+                '<i style="background: blue; border-radius: 50%; width: 10px; height: 10px; display: inline-block;"></i> Titik Lokasi Wisata<br>';
+            div.innerHTML += '<hr>';
+            div.innerHTML +=
+                '<p><b>Petunjuk:</b><br> - Klik titik untuk detail lokasi<br> - Hover area untuk nama desa</p>';
+            return div;
+        };
+
+        // Tambahkan legenda ke peta
+        legend.addTo(map);
+
+// Variabel untuk layer GeoJSON
+var jalanLayer, semarangLayer;
+
+// Memuat GeoJSON untuk jalan
+fetch("{{ asset('geojson/jalan.geojson') }}") // Path file GeoJSON
+    .then(response => response.json())
+    .then(data => {
+        jalanLayer = L.geoJson(data, {
+            style: function(feature) {
+                return {
+                    color: 'red',
+                    weight: 2, // Ketebalan garis
+                    opacity: 1
+                };
+            }
+        });
+        jalanLayer.addTo(map); // Menambahkan layer ke peta secara default
+        addLayerControl(); // Menambahkan kontrol setelah layer tersedia
+    })
+    .catch(error => console.error("Error loading GeoJSON jalan:", error));
+
+// Memuat GeoJSON untuk batas administrasi Semarang
+fetch("{{ asset('geojson/semarang.geojson') }}") // Path file GeoJSON
+    .then(response => response.json())
+    .then(data => {
+        semarangLayer = L.geoJson(data, {
+            style: function(feature) {
+                return {
+                    color: 'orange',
+                    weight: 1,
+                    fillOpacity: 0.5
+                }; // Gaya poligon
+            },
+            onEachFeature: function(feature, layer) {
+                // Menambahkan event mouseover untuk tooltip sementara
+                layer.on('mouseover', function(e) {
+                    const tooltipContent = feature.properties.NAMOBJ || "Nama tidak tersedia";
+                    layer.bindTooltip(tooltipContent, {
+                        permanent: false, // Tooltip sementara
+                        direction: 'top',
+                        className: 'custom-tooltip'
+                    }).openTooltip(e.latlng); // Menampilkan tooltip pada lokasi kursor
+                });
+
+                // Menghapus tooltip saat mouse keluar dari area
+                layer.on('mouseout', function() {
+                    layer.closeTooltip(); // Tooltip otomatis tertutup
+                });
+
+                // Menambahkan popup
+                if (feature.properties && feature.properties.NAMOBJ) {
+                    layer.bindPopup(`Desa: ${feature.properties.NAMOBJ}`);
+                }
+            }
+        });
+        semarangLayer.addTo(map); // Menambahkan layer ke peta secara default
+        addLayerControl(); // Menambahkan kontrol setelah layer tersedia
+    })
+    .catch(error => console.error("Error loading GeoJSON semarang:", error));
+
+// Fungsi untuk menambahkan kontrol layer
+function addLayerControl() {
+    if (jalanLayer && semarangLayer) { // Pastikan kedua layer telah dimuat
+        var overlayLayers = {
+            "Jalan": jalanLayer,
+            "Batas Administrasi Semarang": semarangLayer
+        };
+        L.control.layers(null, overlayLayers, { collapsed: false }).addTo(map);
+    }
+}
+
+
+
 
         /* Digitize Function */
         var drawnItems = new L.FeatureGroup();
@@ -193,9 +306,9 @@
         var drawControl = new L.Control.Draw({
             draw: {
                 position: 'topleft',
-                polyline: true,
-                polygon: true,
-                rectangle: true,
+                polyline: false,
+                polygon: false,
+                rectangle: false,
                 circle: false,
                 marker: true,
                 circlemarker: false
@@ -234,7 +347,7 @@
                             "</div>" +
                             "<div class='col-6'>" +
                             "<form method='POST' action='" + routedelete + "'>" +
-                            '@csrf' + '@method("DELETE")' +
+                            '@csrf' + '@method('DELETE')' +
                             "<button type='submit' class='btn btn-danger btn-sm' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>" +
                             "</form>" +
                             "</div>" +
@@ -273,7 +386,7 @@
                             "</div>" +
                             "<div class='col-6'>" +
                             "<form method='POST' action='" + routedelete + "'>" +
-                            '@csrf' + '@method("DELETE")' +
+                            '@csrf' + '@method('DELETE')' +
                             "<button type='submit' class='btn btn-danger btn-sm' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>" +
                             "</form>" +
                             "</div>" +
@@ -299,12 +412,26 @@
                         var routeedit = "{{ route('polygon.edit', ':id') }}";
                         routeedit = routeedit.replace(':id', feature.properties.id);
 
+                        // Debug log untuk memeriksa data
+                        console.log('Feature properties:', feature.properties);
+
+                        var imageUrl = feature.properties.image ?
+                            "{{ asset('storage/images') }}/" + feature.properties.image :
+                            null;
+
+                        // Debug log untuk URL gambar
+                        console.log('Image URL:', imageUrl);
+
+                        var imageHtml = feature.properties.image ?
+                            "<img src='" + imageUrl +
+                            "' width='250' style='max-width: 100%;' onerror='console.log(\"Error loading image:\", this.src); this.onerror=null; this.src=\"{{ asset('images/no-image.png') }}\";' alt='Polygon Image'><br>" :
+                            "<p>No image available</p>";
+
                         var popupContent = "Nama: " + feature.properties.name + "<br>" +
                             "Deskripsi: " + feature.properties.description + "<br>" +
                             "Luas: " + feature.properties.luas_hektar.toFixed(2) + " hektar" + "<br>" +
                             "Dibuat: " + feature.properties.created_at + "<br>" +
-                            "<img src='{{ asset('storage/images') }}/" + feature.properties.image +
-                            "' width='250' alt=''>" + "<br>" +
+                            imageHtml +
                             "<div class='row mt-4'>" +
                             "<div class='col-6 text-end'>" +
                             "<a href='" + routeedit +
@@ -312,7 +439,7 @@
                             "</div>" +
                             "<div class='col-6'>" +
                             "<form method='POST' action='" + routedelete + "'>" +
-                            '@csrf' + '@method("DELETE")' +
+                            '@csrf' + '@method('DELETE')' +
                             "<button type='submit' class='btn btn-danger btn-sm' onClick='return confirm(`Yakin mau diapus??`)'><i class='fa-solid fa-trash'></i></button>" +
                             "</form>" +
                             "</div>" +
@@ -328,8 +455,7 @@
 
         // Load all layers initially
         loadPoints();
-        loadPolylines();
-        loadPolygons();
+
 
         // Handle dropdown changes
         $('#layerSelect').on('change', function() {
@@ -344,12 +470,8 @@
             if (selectedValue === 'all' || selectedValue === 'points') {
                 loadPoints();
             }
-            if (selectedValue === 'all' || selectedValue === 'polylines') {
-                loadPolylines();
-            }
-            if (selectedValue === 'all' || selectedValue === 'polygons') {
-                loadPolygons();
-            }
+
+
         });
 
         map.on('draw:created', function(e) {
@@ -365,34 +487,30 @@
             console.log(drawnJSONObject);
             //console.log(objectGeometry);
 
-            if (type === 'polyline') {
-                console.log("Create " + type);
+           map.on('draw:created', function(e) {
+    var type = e.layerType,
+        layer = e.layer;
 
-                $('#geom_polyline').val(objectGeometry);
+    if (type === 'marker') { // Hanya menangani marker
+        console.log("Create " + type);
 
-                //memunculkan modal create polyline
-                $('#CreatePolylinesModal').modal('show');
+        var drawnJSONObject = layer.toGeoJSON();
+        var objectGeometry = Terraformer.geojsonToWKT(drawnJSONObject.geometry);
 
-            } else if (type === 'polygon' || type === 'rectangle') {
-                console.log("Create " + type);
+        // Masukkan geometri marker ke input modal
+        $('#geom_point').val(objectGeometry);
 
-                $('#geom_polygon').val(objectGeometry);
+        // Tampilkan modal untuk menambahkan data marker
+        $('#CreatePointModal').modal('show');
 
-                //memunculkan modal create polygon
-                $('#CreatePolygonModal').modal('show');
+        // Tambahkan marker ke peta
+        drawnItems.addLayer(layer);
+    } else {
+        // Abaikan jenis geometri lainnya
+        console.log("Hanya marker yang diperbolehkan.");
+    }
+});
 
-            } else if (type === 'marker') {
-                console.log("Create " + type);
-
-                $('#geom_point').val(objectGeometry);
-
-                //memunculkan modal create marker
-                $('#CreatePointModal').modal('show');
-            } else {
-                console.log('__undefined__');
-            }
-
-            drawnItems.addLayer(layer);
         });
     </script>
 @endsection

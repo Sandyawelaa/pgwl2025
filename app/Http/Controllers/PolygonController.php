@@ -57,8 +57,8 @@ class PolygonController extends Controller
         );
 
         //Create images directory if not exists
-        if (!file_exists(storage_path('app/public/images'))) {
-            mkdir(storage_path('app/public/images'), 0777, true);
+        if (!Storage::exists('public/images')) {
+            Storage::makeDirectory('public/images');
         }
 
         //Get image file
@@ -79,6 +79,9 @@ class PolygonController extends Controller
 
         //Create Data
         if (!$this->polygon->create($data)) {
+            if ($name_image && Storage::exists('public/images/' . $name_image)) {
+                Storage::delete('public/images/' . $name_image);
+            }
             return redirect()->route('map')->with('error', 'Polygon Failed to add');
         }
 
@@ -160,6 +163,9 @@ class PolygonController extends Controller
         ];
 
         if (!$polygon->update($data)) {
+            if ($request->hasFile('image') && Storage::exists('public/images/' . $name_image)) {
+                Storage::delete('public/images/' . $name_image);
+            }
             return redirect()->route('map')->with('error', 'Polygon Failed to update');
         }
 

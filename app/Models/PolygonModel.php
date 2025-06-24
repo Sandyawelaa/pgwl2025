@@ -4,12 +4,25 @@ namespace App\Models;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class PolygonModel extends Model
 {
+    use HasFactory;
     protected $table = 'polygon';
-
     protected $guarded = ['id'];
+
+    // Append image URL to the model
+    protected $appends = ['image_url'];
+
+    // Get image URL attribute
+    public function getImageUrlAttribute()
+    {
+        if ($this->image) {
+            return asset('storage/images/' . $this->image);
+        }
+        return null;
+    }
 
     public function geojson_polygon()
     {
